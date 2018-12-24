@@ -1,0 +1,97 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.sql.*;
+import java.text.DecimalFormat;
+
+public class Adf {
+    public static void main(String[] args) {
+        Adf adf = new Adf();
+
+        String finalHtml = "", line;
+        Connection conn = null;
+        Statement stmt = null;
+        ResultSet rs = null;
+        java.sql.Clob clob = null;
+        Reader reader;
+        BufferedReader br;
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            Class.forName("oracle.jdbc.OracleDriver");
+            String url = "jdbc:oracle:thin:system/system@localhost:1521:xe";
+
+            conn = DriverManager.getConnection(url);
+            if (conn != null) {
+                System.out.println("Connected to DB");
+            }
+
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery("SELECT X FROM DON");
+
+            while (rs.next()) {
+                clob = rs.getClob(1);   //Column Index
+            }
+            reader = clob.getCharacterStream();
+            br = new BufferedReader(reader);
+
+            while (null != (line = br.readLine())) {
+                sb.append(line);
+            }
+            br.close();
+        } catch (SQLException e) {
+            System.out.println("SQL Exception \n" + e);
+        } catch (IOException e) {
+            System.out.println("IO Exception \n" + e);
+        } catch (Exception e) {
+            System.out.println("Other Exception \n" + e);
+        }
+
+        System.out.println("Initial Html \n" + sb.toString());
+
+        finalHtml = adf.tableData(3, 5, 100000, sb.toString());
+
+        System.out.println("Final Html\n" + finalHtml);
+
+    }
+
+    public String tableData(int noOfyr, double percntIncrement, double initRentAmt, String initialHtml) {
+        DecimalFormat df = new DecimalFormat("#####.00");
+        double newAmount = 0;
+
+        String finalHtml ="", newRow1, newRow2, engRows="", arabicRows = "", oneRow = "<tr><td width=\"141\" valign=\"top\" style=\"width:105.5pt;border:solid windowtext 1.0pt;border-top:none;mso-border-top-alt:solid windowtext .5pt;mso-border-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt;\"> <p class=\"MsoNormal\" align=\"center\" style=\"text-align:center;line-height:18.0pt;mso-line-height-rule:exactly;mso-prop-change:zineb 20180118T0956;\"><span style=\"font-size:12.0pt;font-family:&quot;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Times New Roman&quot;,&quot;serif&quot\">$rowNum</span></p></td> <td width=\"141\" valign=\"top\" style=\"width:105.5pt;border-top:none;border-left:none;border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;mso-border-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt;\"><p class=\"MsoNormal\" style=\"text-align:justify;text-justify:inter-ideograph;line-height:18.0pt;mso-line-height-rule:exactly;\"><span style=\"font-size:12.0pt;font-family:&quot;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Times New Roman&quot;,&quot;serif&quot\">$rentAmount</span></p></td></tr>",
+        twoRow = "<tr><td width=\"141\" valign=\"top\" style=\"width:105.5pt;border:solid windowtext 1.0pt;border-top:none;mso-border-top-alt:solid windowtext .5pt;mso-border-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt;\"><p class=\"MsoNormal\" align=\"center\" dir=\"RTL\" style=\"text-align:center;line-height:18.0pt;mso-line-height-rule:exactly;direction:rtl;unicode-bidi:embed;mso-prop-change:zineb 20180118T1000;\"><span dir=\"LTR\" style=\"font-size:12.0pt;font-family:&quot;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Times New Roman&quot;,&quot;serif&quot\">$rentAmount</span></p></td><td width=\"141\" valign=\"top\" style=\"width:105.5pt;border-top:none;border-left:none;border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;mso-border-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt;\"><p class=\"MsoNormal\" align=\"center\" dir=\"RTL\" style=\"text-align:center;line-height:18.0pt;mso-line-height-rule:exactly;direction:rtl;unicode-bidi:embed;mso-prop-change:zineb 20180118T1001;\"><span dir=\"RTL\"></span><span dir=\"RTL\"></span><span lang=\"AR-SA\" style=\"font-size:12.0pt;font-family:&quot;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Times New Roman&quot;,&quot;serif&quot\"><span dir=\"RTL\"></span><span dir=\"RTL\"></span>$rowNum</span><span dir=\"LTR\" style=\"font-size:12.0pt;font-family:&quot;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Times New Roman&quot;,&quot;serif&quot\"></span></p></td></tr>";
+
+        for (int year = 1; year <= noOfyr; year++) {
+            newAmount = initRentAmt + (initRentAmt * percntIncrement * .01);
+            initRentAmt = newAmount;
+            newRow1 = oneRow.replace("$rowNum", Integer.toString(year));
+            newRow1 = newRow1.replace("$rentAmount", df.format(newAmount));
+
+            newRow2 = twoRow.replace("$rowNum", Integer.toString(year));
+            newRow2 = newRow2.replace("$rentAmount", df.format(newAmount));
+
+            engRows = engRows.concat(newRow1);
+            arabicRows = arabicRows.concat(newRow2);
+        }
+
+        finalHtml = initialHtml.substring(0, initialHtml.indexOf("<!--StartComment1-->")) +
+                engRows +
+                initialHtml.substring(initialHtml.indexOf("<!--EndComment1-->") + "<!--EndComment1-->".length(), initialHtml.indexOf("<!--StartComment2-->")) +
+                arabicRows +
+                initialHtml.substring(initialHtml.indexOf("<!--EndComment2-->") + "<!--EndComment2-->".length())
+        ;
+
+        if (finalHtml.startsWith("\"")){
+            System.out.println("start quote");
+            finalHtml = finalHtml.substring(1);
+        }
+
+        if(finalHtml.endsWith("\"")){
+            System.out.println("end quote");
+            finalHtml = finalHtml.substring(0, finalHtml.length()-1);
+        }
+
+        return finalHtml;
+    }
+}
